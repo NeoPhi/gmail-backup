@@ -129,7 +129,7 @@ function createStatus(mailbox, callback) {
       if (status.uidvalidity !== mailbox.uidvalidity) {
         return callback(new Error('uidvalidity change'));
       }
-      if (status.uidnext < mailbox.uidnext) {
+      if (status.uidnext > mailbox.uidnext) {
         return callback(new Error('uidnext issue'));
       }
       status.uidnext = mailbox.uidnext;
