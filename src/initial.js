@@ -20,22 +20,23 @@ const connection = new IMAP({
   tls: true
 });
 
-function finish() {
+function finish(error) {
   connection.end();
-  process.exit(0);
+  if (error) {
+    throw error;
+  }
 }
 
 function saveMessage(messageContext, data, tempFile) {
   return new Promise((resolve, reject) => {
     if (!data.uid) {
-      console.log(messageContext, 'ERROR', 'missing UID');
-      return reject(messageContext);
+      return reject(new Error(messageContext + ' missing UID'));
     }
     const uid = data.uid.toString();
     const directory = utility.groupDirectory(config.directory, uid);
     mkdirp.mkdirp(directory, function(error) {
       if (error) {
-        return reject(messageContext, error);
+        return reject(error);
       }
       async.parallel([
         callback => {
@@ -48,7 +49,7 @@ function saveMessage(messageContext, data, tempFile) {
         }
       ], (error) => {
         if (error) {
-          return reject(messageContext, error);
+          return reject(error);
         }
         resolve(messageContext);
       });
@@ -86,7 +87,7 @@ function fetchBatch(start, stop, callback) {
     }));
   });
   fetch.on('error', function(error) {
-    console.log(fetchContext, 'ERROR', error);
+    return finish(error);
   });
   fetch.once('end', function() {
     console.log(fetchContext, 'END');
@@ -94,7 +95,7 @@ function fetchBatch(start, stop, callback) {
       console.log(fetchContext, 'END', 'PROMISE');
       callback();
     }).catch(function(error) {
-      console.log(fetchContext, 'END', 'ERROR', error);
+      console.log(fetchContext, 'END', 'ERROR');
       callback(error);
     });
   });
@@ -131,14 +132,12 @@ function createStatus(mailbox, callback) {
 function next(status) {
   fetchBatch(status.start, status.start + 99, (error) => {
     if (error) {
-      console.log('fetchBatch', 'ERROR', error);
-      return finish();
+      return finish(error);
     }
     status.start += 100;
     fs.writeFile(path.join(config.directory, 'status.json'), JSON.stringify(status, null, '  '), (error) => {
       if (error) {
-        console.log('fetchBatch', 'ERROR', error);
-        return finish();
+        return finish(error);
       }
       if (status.start >= 400) {
         return finish();
