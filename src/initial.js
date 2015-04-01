@@ -73,7 +73,7 @@ function fetchBatch(start, stop, callback) {
         dir: config.directory,
         suffix: '.msg'
       });
-      console.log(fetchContext, 'MESSAGE', seqno);
+      console.log(fetchContext, 'MESSAGE', seqno, inspect(message));
       const messageContext = [fetchContext, 'message', seqno].join(':');
       let bodyPromise;
       message.on('body', (stream) => {
