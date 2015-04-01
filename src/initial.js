@@ -69,15 +69,20 @@ function fetchBatch(start, stop, callback) {
   const promises = [];
   fetch.on('message', (message, seqno) => {
     promises.push(new Promise((resolve, reject) => {
-      let tempFile = temp.path({
+      const tempFile = temp.path({
         dir: config.directory,
         suffix: '.msg'
       });
       console.log(fetchContext, 'MESSAGE', seqno);
       const messageContext = [fetchContext, 'message', seqno].join(':');
+      let bodyPromise;
       message.on('body', (stream) => {
         console.log(messageContext, 'BODY');
-        stream.pipe(fs.createWriteStream(tempFile));
+        bodyPromise = new Promise((resolve) => {
+          const output = fs.createWriteStream(tempFile);
+          output.on('finish', resolve);
+          stream.pipe(output);
+        });
       });
       let data = {};
       message.on('attributes', (attributes) => {
@@ -86,7 +91,9 @@ function fetchBatch(start, stop, callback) {
       });
       message.once('end', () => {
         console.log(messageContext, 'END');
-        saveMessage(messageContext, data, tempFile).then(resolve, reject);
+        bodyPromise.then(() => {
+          return saveMessage(messageContext, data, tempFile);
+        }).then(resolve, reject);
       });
     }));
   });
