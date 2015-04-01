@@ -37,16 +37,16 @@ function saveMessage(messageContext, data, tempFile) {
     }
     const uid = data.uid.toString();
     const directory = utility.groupDirectory(config.directory, uid);
-    mkdirp.mkdirp(directory, function(error) {
+    mkdirp.mkdirp(directory, (error) => {
       if (error) {
         return reject(error);
       }
       async.parallel([
-        callback => {
+        (callback) => {
           const newPath = path.join(directory, uid + '.msg');
           fs.rename(tempFile, newPath, callback);
         },
-        callback => {
+        (callback) => {
           const newPath = path.join(directory, uid + '.json');
           fs.writeFile(newPath, JSON.stringify(data, null, '  '), callback);
         }
@@ -67,7 +67,7 @@ function fetchBatch(start, stop, callback) {
     bodies: ''
   });
   const promises = [];
-  fetch.on('message', function(message, seqno) {
+  fetch.on('message', (message, seqno) => {
     promises.push(new Promise((resolve, reject) => {
       let tempFile = temp.path({
         dir: config.directory,
@@ -75,30 +75,30 @@ function fetchBatch(start, stop, callback) {
       });
       console.log(fetchContext, 'MESSAGE', seqno);
       const messageContext = [fetchContext, 'message', seqno].join(':');
-      message.on('body', function(stream) {
+      message.on('body', (stream) => {
         console.log(messageContext, 'BODY');
         stream.pipe(fs.createWriteStream(tempFile));
       });
       let data = {};
-      message.on('attributes', function(attributes) {
+      message.on('attributes', (attributes) => {
         console.log(messageContext, 'ATTRIBUTES');
         data = attributes;
       });
-      message.once('end', function() {
+      message.once('end', () => {
         console.log(messageContext, 'END');
         saveMessage(messageContext, data, tempFile).then(resolve, reject);
       });
     }));
   });
-  fetch.on('error', function(error) {
+  fetch.on('error', (error) => {
     return finish(error);
   });
-  fetch.once('end', function() {
+  fetch.once('end', () => {
     console.log(fetchContext, 'END');
-    Promise.all(promises).then(function() {
+    Promise.all(promises).then(() => {
       console.log(fetchContext, 'END', 'PROMISE');
       callback();
-    }).catch(function(error) {
+    }).catch((error) => {
       console.log(fetchContext, 'END', 'ERROR');
       callback(error);
     });
@@ -106,7 +106,7 @@ function fetchBatch(start, stop, callback) {
 }
 
 function createStatus(mailbox, callback) {
-  fs.readFile(path.join(config.directory, 'status.json'), function(error, data) {
+  fs.readFile(path.join(config.directory, 'status.json'), (error, data) => {
     if (error) {
       if (error.code === 'ENOENT') {
         return callback(undefined, {
@@ -143,63 +143,56 @@ function next(status) {
       if (error) {
         return finish(error);
       }
-      if (status.start >= 400) {
-        return finish();
-      }
       next(status);
     });
   });
 }
 
-connection.once('ready', function() {
+connection.once('ready', () => {
   console.log('connection', 'READY');
-  connection.openBox('[Gmail]/All Mail', true, function(err, mailbox) {
-    if (err) {
-      console.log('openBox', 'ERROR', err);
-      return finish();
+  connection.openBox('[Gmail]/All Mail', true, (error, mailbox) => {
+    if (error) {
+      return finish(error);
     }
     console.log('openBox', 'INFO', inspect(mailbox));
     createStatus(mailbox, (error, status) => {
       if (error) {
-        console.log('status', 'ERROR', error);
-        return finish();
+        return finish(error);
       }
       next(status);
     });
   });
 });
 
-connection.on('alert', function(message) {
+connection.on('alert', (message) => {
   console.log('connection', 'ALERT', message);
 });
 
-connection.on('mail', function(numNewMsgs) {
+connection.on('mail', (numNewMsgs) => {
   console.log('connection', 'MAIL', numNewMsgs);
 });
 
-connection.on('expunge', function(seqno) {
+connection.on('expunge', (seqno) => {
   console.log('connection', 'EXPUNGE', seqno);
 });
 
-connection.on('uidvalidity', function(uidvalidity) {
-  console.log('connection', 'UID VALIDITY', uidvalidity);
-  finish();
+connection.on('uidvalidity', (uidvalidity) => {
+  finish(new Error('UIDVALIDITY changed ' + uidvalidity));
 });
 
-connection.on('update', function(seqno, info) {
+connection.on('update', (seqno, info) => {
   console.log('connection', 'UPDATE', seqno, info);
 });
 
-connection.on('error', function(error) {
-  console.log('connection', 'ERROR', error);
-  finish();
+connection.on('error', (error) => {
+  finish(error);
 });
 
-connection.on('close', function(hadError) {
+connection.on('close', (hadError) => {
   console.log('connection', 'CLOSE', hadError);
 });
 
-connection.once('end', function() {
+connection.once('end', () => {
   console.log('connection', 'END');
 });
 
