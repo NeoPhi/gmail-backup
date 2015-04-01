@@ -23,7 +23,9 @@ const connection = new IMAP({
 function finish(error) {
   connection.end();
   if (error) {
-    throw error;
+    process.nextTick(function() {
+      throw error;
+    });
   }
 }
 
