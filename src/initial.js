@@ -70,6 +70,7 @@ function fetchBatch(start, stop, callback) {
   fetch.on('message', function(message, seqno) {
     promises.push(new Promise((resolve, reject) => {
       let tempFile = temp.path({
+        dir: config.directory,
         suffix: '.msg'
       });
       console.log(fetchContext, 'MESSAGE', seqno);
